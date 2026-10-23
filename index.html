@@ -1,0 +1,1088 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#1f6f78">
+<title>Haus-Manager</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<style>
+  :root {
+    --bg: #f4f6f6;
+    --card: #ffffff;
+    --text: #1f2a2b;
+    --muted: #70807f;
+    --accent: #1f6f78;
+    --accent-soft: #dcecee;
+    --border: #e1e8e8;
+    --ok: #3d9b63;
+    --warn: #e8963e;
+    --danger: #d9534f;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding-bottom: 150px;
+  }
+  header {
+    background: var(--accent);
+    color: #fff;
+    padding: calc(env(safe-area-inset-top, 0px) + 14px) 16px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  header h1 { font-size: 1.15rem; font-weight: 700; }
+  header .settings-btn {
+    background: rgba(255,255,255,.18);
+    border: none; color: #fff;
+    padding: 6px 12px; border-radius: 20px;
+    font-size: .8rem; cursor: pointer;
+  }
+  [hidden] { display: none !important; }
+  main { max-width: 560px; margin: 0 auto; padding: 14px; }
+  h2 { font-size: .85rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin: 18px 0 8px; }
+  .empty { text-align: center; color: var(--muted); font-size: .88rem; padding: 22px 0; line-height: 1.5; }
+  .hint { font-size: .75rem; color: var(--muted); line-height: 1.4; margin-top: 10px; }
+  .link-btn { background: none; border: none; color: var(--accent); font-size: .85rem; cursor: pointer; padding: 6px 0; font-weight: 600; }
+
+  .chip {
+    font-size: .7rem; padding: 3px 8px; border-radius: 10px;
+    white-space: nowrap; font-weight: 600;
+  }
+  .chip.ok { background: #e3f2e9; color: var(--ok); }
+  .chip.warn { background: #fdf0e0; color: #b26b13; }
+  .chip.danger { background: #fbe5e4; color: var(--danger); }
+  .chip.none { background: var(--bg); color: var(--muted); font-weight: 400; }
+  .chip.soft { background: var(--accent-soft); color: var(--accent); }
+
+  /* Jahr + Monatsraster */
+  .year-bar { display: flex; align-items: center; justify-content: center; gap: 18px; margin-bottom: 10px; }
+  .year-bar button {
+    width: 38px; height: 38px; border-radius: 12px; border: 1px solid var(--border);
+    background: var(--card); font-size: 1.1rem; cursor: pointer; color: var(--text);
+  }
+  .year-bar b { font-size: 1.2rem; min-width: 70px; text-align: center; }
+  .month-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 6px; }
+  .mcell {
+    background: var(--card); border: 2px solid transparent; border-radius: 12px;
+    padding: 8px 4px; text-align: center; cursor: pointer;
+    box-shadow: 0 1px 2px rgba(0,0,0,.04); font: inherit; color: var(--text);
+  }
+  .mcell b { display: block; font-size: .85rem; }
+  .mcell small { display: block; font-size: .7rem; color: var(--muted); margin-top: 2px; }
+  .mcell.cur b { color: var(--accent); }
+  .mcell.sel { border-color: var(--accent); background: var(--accent-soft); }
+  .mcell.alldone small { color: var(--ok); font-weight: 600; }
+  .mcell.late small { color: var(--danger); font-weight: 600; }
+
+  /* Zeilen (Aufgaben, Einträge) */
+  .row {
+    background: var(--card); border-radius: var(--radius);
+    padding: 10px 12px; margin-bottom: 8px;
+    display: flex; align-items: center; gap: 10px;
+    box-shadow: 0 1px 2px rgba(0,0,0,.04);
+  }
+  .row .info { flex: 1; min-width: 0; cursor: pointer; }
+  .row .info b { font-size: .92rem; font-weight: 600; }
+  .row .info span { display: block; font-size: .75rem; color: var(--muted); margin-top: 1px; }
+  .row.done .info b { text-decoration: line-through; color: var(--muted); }
+  .row input[type="checkbox"] { width: 22px; height: 22px; accent-color: var(--accent); flex-shrink: 0; }
+
+  /* Wo ist was */
+  .search {
+    width: 100%; padding: 12px; border: 1px solid var(--border);
+    border-radius: 12px; font-size: 1rem; background: var(--card); color: var(--text);
+    margin-bottom: 10px;
+  }
+  .filters { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 4px; }
+  .filters button {
+    flex-shrink: 0; border: 1px solid var(--border); background: var(--card); color: var(--text);
+    border-radius: 16px; padding: 6px 12px; font-size: .78rem; cursor: pointer;
+  }
+  .filters button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .spot {
+    background: var(--card); border-radius: var(--radius); padding: 12px 14px;
+    margin-bottom: 8px; box-shadow: 0 1px 2px rgba(0,0,0,.04); cursor: pointer;
+  }
+  .spot-head { display: flex; align-items: center; gap: 8px; }
+  .spot-head b { flex: 1; font-size: .95rem; }
+  .spot .where { font-size: .82rem; color: var(--muted); margin-top: 3px; }
+  .spot .note { font-size: .84rem; margin-top: 8px; white-space: pre-wrap; line-height: 1.45; }
+  .spot .note.clamp { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .spot img { display: block; width: 100%; max-height: 260px; object-fit: cover; border-radius: 10px; margin-top: 10px; }
+  .spot .edit { margin-top: 10px; }
+
+  .qty { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+  .qty button {
+    width: 34px; height: 34px; border-radius: 10px; border: 1px solid var(--border);
+    background: var(--bg); font-size: 1.1rem; cursor: pointer; color: var(--text);
+  }
+  .qty b { min-width: 28px; text-align: center; font-size: 1rem; }
+  .qty b.low { color: var(--danger); }
+
+  /* Verbrauch */
+  .meter-bar { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 8px; }
+  .meter-bar button {
+    flex-shrink: 0; border: 1px solid var(--border); background: var(--card); color: var(--text);
+    border-radius: 16px; padding: 7px 14px; font-size: .85rem; cursor: pointer;
+  }
+  .meter-bar button.on { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  .card { background: var(--card); border-radius: var(--radius); padding: 14px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.05); }
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .stat small { display: block; font-size: .72rem; color: var(--muted); }
+  .stat b { font-size: 1.15rem; }
+  .stat b em { font-style: normal; font-size: .75rem; font-weight: 400; color: var(--muted); }
+  .chart { width: 100%; height: auto; display: block; margin-top: 4px; }
+  .chart text { fill: var(--muted); font-size: 9px; }
+  .chart .val { fill: var(--text); font-weight: 600; }
+  .chart rect { fill: var(--accent); }
+  table.plain { width: 100%; border-collapse: collapse; font-size: .85rem; }
+  table.plain th { text-align: left; font-size: .72rem; color: var(--muted); font-weight: 600; padding: 4px 4px 6px; }
+  table.plain td { padding: 8px 4px; border-top: 1px solid var(--border); }
+  table.plain tr.clickable { cursor: pointer; }
+  table.plain .num { text-align: right; font-variant-numeric: tabular-nums; }
+
+  /* Tab-Leiste + Aktionsleiste */
+  .bottom-bar {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: var(--card); border-top: 1px solid var(--border);
+    padding: 0 0 env(safe-area-inset-bottom, 0px);
+  }
+  .action-row { padding: 10px 14px 4px; display: flex; justify-content: center; }
+  .action-row button {
+    width: 100%; max-width: 320px;
+    background: var(--accent); color: #fff; border: none;
+    border-radius: var(--radius); padding: 13px; font-size: .95rem; font-weight: 600;
+    cursor: pointer;
+  }
+  .tabs { display: flex; }
+  .tabs button {
+    flex: 1; background: none; border: none; padding: 8px 0 10px;
+    font-size: .72rem; color: var(--muted); cursor: pointer;
+  }
+  .tabs button .ico { display: block; font-size: 1.25rem; margin-bottom: 2px; }
+  .tabs button.active { color: var(--accent); font-weight: 700; }
+  .badge {
+    display: inline-block; min-width: 17px; padding: 1px 5px;
+    background: var(--danger); color: #fff; border-radius: 9px;
+    font-size: .65rem; font-weight: 700; margin-left: 3px; vertical-align: top;
+  }
+
+  /* Dialog */
+  dialog {
+    border: none; border-radius: var(--radius) var(--radius) 0 0;
+    padding: 0; width: 100%; max-width: 560px;
+    margin: auto auto 0; background: var(--card); color: var(--text);
+  }
+  dialog::backdrop { background: rgba(0,0,0,.4); }
+  .dialog-body { padding: 18px 18px calc(env(safe-area-inset-bottom, 0px) + 18px); max-height: 86vh; overflow-y: auto; }
+  .dialog-body h3 { font-size: 1.1rem; margin-bottom: 14px; }
+  .field { margin-bottom: 14px; }
+  .field label { display: block; font-size: .8rem; color: var(--muted); margin-bottom: 6px; }
+  .field input, .field select, .field textarea {
+    width: 100%; padding: 11px; border: 1px solid var(--border);
+    border-radius: 10px; font-size: 1rem; background: var(--bg); color: var(--text); font-family: inherit;
+  }
+  .field textarea { min-height: 110px; resize: vertical; }
+  .mchips { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+  .mchips button {
+    padding: 9px 0; border: 1px solid var(--border); border-radius: 10px;
+    background: var(--bg); font-size: .78rem; cursor: pointer; color: var(--text);
+  }
+  .mchips button.on { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  .photo-preview { display: block; width: 100%; max-height: 220px; object-fit: cover; border-radius: 10px; margin-bottom: 8px; }
+  .dialog-actions { display: flex; gap: 10px; margin-top: 18px; }
+  .dialog-actions button {
+    flex: 1; padding: 13px; border-radius: var(--radius); border: none;
+    font-size: .95rem; font-weight: 600; cursor: pointer;
+  }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-secondary { background: var(--accent-soft); color: var(--accent); }
+  .btn-danger { background: #fbe5e4; color: var(--danger); }
+  .stack { display: flex; flex-direction: column; gap: 10px; }
+  .stack button { padding: 13px; border-radius: var(--radius); border: none; font-size: .95rem; font-weight: 600; cursor: pointer; background: var(--accent-soft); color: var(--accent); }
+  #lightboxDialog { max-width: 96vw; border-radius: 12px; margin: auto; background: #000; }
+  #lightboxDialog img { display: block; width: 100%; max-height: 90vh; object-fit: contain; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🏡 Haus-Manager</h1>
+  <button class="settings-btn" id="settingsBtn">⚙️ Backup</button>
+</header>
+
+<main>
+  <section id="view-kalender"></section>
+  <section id="view-spots" hidden></section>
+  <section id="view-lager" hidden></section>
+  <section id="view-verbrauch" hidden></section>
+</main>
+
+<div class="bottom-bar">
+  <div class="action-row"><button id="actionBtn"></button></div>
+  <nav class="tabs">
+    <button data-tab="kalender" class="active"><span class="ico">📅</span>Kalender<span id="lateBadge"></span></button>
+    <button data-tab="spots"><span class="ico">📍</span>Wo ist was</button>
+    <button data-tab="lager"><span class="ico">🧰</span>Lager<span id="lowBadge"></span></button>
+    <button data-tab="verbrauch"><span class="ico">📊</span>Verbrauch</button>
+  </nav>
+</div>
+
+<!-- Aufgaben-Dialog -->
+<dialog id="taskDialog">
+  <div class="dialog-body">
+    <h3 id="taskDialogTitle">Aufgabe</h3>
+    <div class="field"><label for="tTitle">Aufgabe</label><input type="text" id="tTitle" placeholder="z.B. Dachrinnen reinigen"></div>
+    <div class="field"><label for="tCat">Bereich</label><select id="tCat"></select></div>
+    <div class="field"><label>Fällig in diesen Monaten (jedes Jahr)</label><div class="mchips" id="tMonths"></div></div>
+    <div class="field"><label for="tYear">Nur im Jahr (leer = jedes Jahr)</label><input type="number" id="tYear" inputmode="numeric" min="2020" max="2100" placeholder="z.B. 2027"></div>
+    <div class="field"><label for="tNote">Notiz (optional)</label><textarea id="tNote" style="min-height:70px"></textarea></div>
+    <div class="dialog-actions">
+      <button class="btn-danger" id="taskDeleteBtn" hidden>Löschen</button>
+      <button class="btn-secondary" id="taskCancelBtn">Abbrechen</button>
+      <button class="btn-primary" id="taskSaveBtn">Speichern</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- Wo-ist-was-Dialog -->
+<dialog id="spotDialog">
+  <div class="dialog-body">
+    <h3 id="spotDialogTitle">Eintrag</h3>
+    <div class="field"><label for="sName">Was?</label><input type="text" id="sName" placeholder="z.B. Sicherungskasten"></div>
+    <div class="field"><label for="sRoom">Raum / Bereich</label><input type="text" id="sRoom" list="roomList" placeholder="z.B. Technikraum (Keller)"></div>
+    <datalist id="roomList"></datalist>
+    <div class="field"><label for="sPlace">Genauer Standort</label><input type="text" id="sPlace" placeholder="z.B. links neben der Tür, auf Augenhöhe"></div>
+    <div class="field"><label for="sCat">Kategorie</label><select id="sCat"></select></div>
+    <div class="field"><label for="sNote">Details (z.B. Belegung der Sicherungen)</label><textarea id="sNote" placeholder="F1  Küche Steckdosen&#10;F2  Licht EG&#10;…"></textarea></div>
+    <div class="field">
+      <label>Foto</label>
+      <img id="sPhotoPreview" class="photo-preview" hidden alt="Foto">
+      <input type="file" id="sPhotoInput" accept="image/*">
+      <button type="button" class="link-btn" id="sPhotoRemove" hidden>Foto entfernen</button>
+    </div>
+    <div class="dialog-actions">
+      <button class="btn-danger" id="spotDeleteBtn" hidden>Löschen</button>
+      <button class="btn-secondary" id="spotCancelBtn">Abbrechen</button>
+      <button class="btn-primary" id="spotSaveBtn">Speichern</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- Lager-Dialog -->
+<dialog id="stockDialog">
+  <div class="dialog-body">
+    <h3 id="stockDialogTitle">Lagerartikel</h3>
+    <div class="field"><label for="lName">Was?</label><input type="text" id="lName" placeholder="z.B. Akkuschrauber, Dichtungen 3/4&quot;, Rauchmelder-Batterien"></div>
+    <div class="field"><label for="lType">Art</label><select id="lType"></select></div>
+    <div class="field"><label for="lPlace">Lagerort</label><input type="text" id="lPlace" list="stockPlaceList" placeholder="z.B. Gerätehütte, Regal links, Kiste 3"></div>
+    <datalist id="stockPlaceList"></datalist>
+    <div class="field"><label>Menge &nbsp;·&nbsp; Mindestbestand (optional)</label>
+      <div style="display:flex;gap:10px">
+        <input type="number" id="lQty" inputmode="numeric" min="0" step="1" placeholder="Anzahl" style="flex:1">
+        <input type="number" id="lMin" inputmode="numeric" min="0" step="1" placeholder="Mindestbestand" style="flex:1">
+      </div>
+    </div>
+    <div class="field"><label for="lNote">Passt zu / Details (Typ, Größe, Artikelnummer)</label><textarea id="lNote" style="min-height:80px" placeholder="z.B. Ersatzfilter Heizung, Art.-Nr. …"></textarea></div>
+    <div class="field"><label for="lLent">Verliehen an (optional)</label><input type="text" id="lLent" placeholder="z.B. Nachbar Müller, seit 12.10."></div>
+    <div class="field">
+      <label>Foto</label>
+      <img id="lPhotoPreview" class="photo-preview" hidden alt="Foto">
+      <input type="file" id="lPhotoInput" accept="image/*">
+      <button type="button" class="link-btn" id="lPhotoRemove" hidden>Foto entfernen</button>
+    </div>
+    <div class="dialog-actions">
+      <button class="btn-danger" id="stockDeleteBtn" hidden>Löschen</button>
+      <button class="btn-secondary" id="stockCancelBtn">Abbrechen</button>
+      <button class="btn-primary" id="stockSaveBtn">Speichern</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- Zähler-Dialog -->
+<dialog id="meterDialog">
+  <div class="dialog-body">
+    <h3 id="meterDialogTitle">Zähler</h3>
+    <div class="field"><label for="mName">Name</label><input type="text" id="mName" placeholder="z.B. Gas"></div>
+    <div class="field"><label for="mUnit">Einheit</label><input type="text" id="mUnit" list="unitList" placeholder="m³ oder kWh"></div>
+    <datalist id="unitList"><option value="m³"><option value="kWh"></datalist>
+    <div class="field"><label for="mPrice">Preis pro Einheit in € (optional, für Kostenschätzung)</label><input type="number" id="mPrice" inputmode="decimal" step="0.001" min="0"></div>
+    <div class="dialog-actions">
+      <button class="btn-danger" id="meterDeleteBtn" hidden>Löschen</button>
+      <button class="btn-secondary" id="meterCancelBtn">Abbrechen</button>
+      <button class="btn-primary" id="meterSaveBtn">Speichern</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- Zählerstand-Dialog -->
+<dialog id="readingDialog">
+  <div class="dialog-body">
+    <h3 id="readingDialogTitle">Zählerstand erfassen</h3>
+    <div class="field"><label for="rMeter">Zähler</label><select id="rMeter"></select></div>
+    <div class="field"><label for="rDate">Datum</label><input type="date" id="rDate"></div>
+    <div class="field"><label for="rValue" id="rValueLabel">Zählerstand</label><input type="number" id="rValue" inputmode="decimal" step="any" min="0"></div>
+    <div class="field"><label for="rNote">Notiz (optional)</label><input type="text" id="rNote" placeholder="z.B. Jahresablesung, Zählerwechsel"></div>
+    <div class="dialog-actions">
+      <button class="btn-danger" id="readingDeleteBtn" hidden>Löschen</button>
+      <button class="btn-secondary" id="readingCancelBtn">Abbrechen</button>
+      <button class="btn-primary" id="readingSaveBtn">Speichern</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- Backup-Dialog -->
+<dialog id="settingsDialog">
+  <div class="dialog-body">
+    <h3>Backup &amp; Export</h3>
+    <div class="stack">
+      <button id="exportJsonBtn">💾 Backup speichern (JSON)</button>
+      <button id="importJsonBtn">📂 Backup einspielen</button>
+      <button id="exportMdBtn">📝 Export fürs Second Brain (Markdown)</button>
+      <button id="closeSettingsBtn" style="background:var(--bg);color:var(--muted)">Schließen</button>
+    </div>
+    <input type="file" id="importInput" accept="application/json,.json" hidden>
+    <p class="hint">Alle Daten liegen nur in diesem Browser auf diesem Gerät. Mach hin und wieder ein Backup – besonders vor dem Wechsel des Handys oder dem Löschen von Browserdaten. Das Markdown enthält Wo-ist-was-Liste, Zählerstände und Jahresaufgaben (ohne Fotos).</p>
+  </div>
+</dialog>
+
+<dialog id="lightboxDialog"><img id="lightboxImg" alt="Foto"></dialog>
+
+<script>
+// ---------- Konstanten ----------
+const MONTHS = ["Januar","Februar","März","April","Mai","Juni","Juli","August","September","Oktober","November","Dezember"];
+const MON_S = ["Jan","Feb","Mär","Apr","Mai","Jun","Jul","Aug","Sep","Okt","Nov","Dez"];
+const TCATS = {
+  haus:       { name: "Haus",       ico: "🏠" },
+  technik:    { name: "Technik",    ico: "🔧" },
+  garten:     { name: "Garten",     ico: "🌿" },
+  verwaltung: { name: "Verwaltung", ico: "📄" },
+};
+const SPOT_CATS = ["Strom","Wasser","Gas","Heizung","Internet","Sicherheit","Dokumente","Sonstiges"];
+const STOCK_TYPES = {
+  werkzeug:   { name: "Werkzeug",   ico: "🔧" },
+  ersatzteil: { name: "Ersatzteil", ico: "🔩" },
+  material:   { name: "Material",   ico: "🧴" },
+};
+const ROOMS = ["Technikraum (Keller)","Waschküche (Keller)","Partykeller","Flur Keller","Bad Keller","Erdgeschoss","Obergeschoss","Garage","Gerätehütte","Garten","Vorgarten","Außen am Haus"];
+
+// Startbestand Aufgaben: [Titel, Bereich, Monate, Notiz]
+const TASK_SEED = [
+  ["Rauchmelder testen, Batterien prüfen", "technik", [10], "Prüftaste an jedem Melder drücken."],
+  ["FI-Schutzschalter testen (Prüftaste)", "technik", [3, 9], "Sicherungskasten, Taste „T“ – danach Geräte ggf. neu stellen."],
+  ["Heizung: Wartung durch Fachbetrieb", "technik", [9], "Vor Beginn der Heizperiode terminieren."],
+  ["Heizkörper entlüften, Anlagendruck prüfen", "technik", [10], ""],
+  ["Photovoltaik: Ertrag und Wechselrichter-Anzeige prüfen", "technik", [4, 10], "Fehlermeldungen? Ertrag plausibel?"],
+  ["Rückstauklappe / Abläufe im Keller prüfen", "technik", [4, 10], "Falls vorhanden."],
+  ["Waschmaschine & Spülmaschine: Filter und Dichtungen reinigen", "haus", [3, 9], ""],
+  ["Feuerlöscher / Löschspray prüfen", "haus", [1], "Druckanzeige, Plombe, Ablaufdatum."],
+  ["Absperrventile einmal bewegen (Wasser, Heizung)", "haus", [6], "Damit sie nicht festgehen."],
+  ["Dachrinnen und Fallrohre reinigen", "haus", [4, 11], ""],
+  ["Dach, Fassade und Kellerfenster auf Schäden prüfen", "haus", [4], ""],
+  ["Außenwasserhähne absperren und entleeren", "haus", [11], "Frostschutz."],
+  ["Außenwasserhähne wieder öffnen", "haus", [4], ""],
+  ["Zählerstände erfassen (Gas, Strom, Wasser)", "verwaltung", [1,2,3,4,5,6,7,8,9,10,11,12], "Am Monatsersten – im Tab „Verbrauch“ eintragen."],
+  ["Jahresabrechnungen prüfen, Abschläge anpassen", "verwaltung", [1], ""],
+  ["Versicherungen (Gebäude, Hausrat) prüfen", "verwaltung", [11], ""],
+  ["Rasenmäher (Honda HRX476C): Öl, Zündkerze, Luftfilter, Messer prüfen", "garten", [3], "Details: Second Brain › Geräte & Wartung."],
+  ["Rasenmäher: Messer schärfen, Kraftstoffanlage entleeren, reinigen", "garten", [10], "Saisonende."],
+  ["Kiwi: Winterschnitt", "garten", [1], "Spätestens bis Ende Januar, später blutet sie stark."],
+  ["Apfel & Birne: Hauptschnitt (Hochstamm)", "garten", [2], "Nicht bei Frost unter −5 °C."],
+  ["Apfel & Birne: Weißanstrich und Leimringe kontrollieren", "garten", [2], ""],
+  ["Wilder Wein aus Dachrinne, Fenstern und Fugen schneiden", "garten", [2, 6], ""],
+  ["Immergrüne bei frostfreiem Wetter gießen", "garten", [12, 1, 2], "Rhododendron, Kirschlorbeer, Stechpalme, Glanzmispel (Frosttrocknis)."],
+  ["Pampasgras auf 10–20 cm zurückschneiden", "garten", [3], "Handschuhe! Bindung entfernen."],
+  ["Feige: Winterschutz schrittweise abnehmen", "garten", [3], "Vlies bei Frostgefahr bereithalten."],
+  ["Oleander auslichten (max. 1/3), tagsüber raus", "garten", [3], "Nachts bei Frost wieder rein."],
+  ["Düngen & mulchen", "garten", [3], "Rhododendron/Immergrüne: Spezialdünger; Obst, Kiwi, Flieder: Kompost + Hornspäne."],
+  ["Rosen: Hauptschnitt", "garten", [3], "März/April, Form und Verjüngung."],
+  ["Hanfpalme auswintern, braune Wedel abschneiden", "garten", [4], "Nie grüne Wedel."],
+  ["Eukalyptus & Feige: Frostschäden zurückschneiden", "garten", [4], "Kratzprobe: grün = lebt."],
+  ["Glanzmispel schneiden (roter Austrieb)", "garten", [4], "Ende April/Mai."],
+  ["Teich: Pumpe/Filter in Betrieb nehmen", "garten", [4], "Bitte prüfen, ob zutreffend."],
+  ["Pool: Saison starten (Technik, Wasserwerte)", "garten", [5], "Bitte prüfen, ob zutreffend."],
+  ["Oleander erst nach den Eisheiligen dauerhaft raus; wöchentlich flüssig düngen", "garten", [5], "Eisheilige 11.–15. Mai; Düngen bis Ende August."],
+  ["Flieder nach der Blüte schneiden", "garten", [6], "Spätestens Ende Juni."],
+  ["Kiwi: Sommerschnitt", "garten", [6, 7], ""],
+  ["Feige: Triebspitzen auf 5 Blätter einkürzen", "garten", [6, 7], ""],
+  ["Kirschlorbeer & Stechpalme: Formschnitt", "garten", [6, 8], "Vorher Nester prüfen (Brutzeit)."],
+  ["Kein Stickstoffdünger mehr ab Mitte Juli", "garten", [7], "Damit das Holz ausreift."],
+  ["Schädlinge/Pilze kontrollieren (Mehltau, Zikade, Blattflecken)", "garten", [8], ""],
+  ["Herbstdünger (kaliumbetont) für Feige, Kiwi, Obstbäume", "garten", [9], "Patentkali für die Holzreife. Ernte: Birne, Apfel, Feige."],
+  ["Pool winterfest machen", "garten", [9], "Bitte prüfen, ob zutreffend."],
+  ["Oleander einräumen", "garten", [10], "Vor dem ersten Frost, hell und 5–10 °C."],
+  ["Leimringe an Apfel & Birne anlegen", "garten", [10], ""],
+  ["Kiwi ernten (großfruchtig)", "garten", [10], "Mitte Okt. bis Anfang Nov., vor starkem Frost."],
+  ["Rhododendron & Immergrüne: durchdringend gießen, mulchen", "garten", [10], "5–10 cm Laub/Rinde."],
+  ["Teich: Pumpe winterfest machen, Laubnetz", "garten", [10], "Bitte prüfen, ob zutreffend."],
+  ["Winterschutz anbringen: Feige, Hanfpalme, Pampasgras", "garten", [11], ""],
+  ["Apfel & Birne: Weißanstrich am Stamm", "garten", [11], ""],
+  ["Gartengeräte reinigen und schärfen", "garten", [11], ""],
+  ["Dünger, Vlies, Leimringe fürs neue Jahr besorgen", "garten", [12], ""],
+  ["Winterschutz nach Sturm und Schnee kontrollieren", "garten", [12, 1], ""],
+];
+
+// Vorschläge für „Wo ist was“: [Name, Kategorie]
+const SPOT_SEED = [
+  ["Sicherungskasten", "Strom"], ["FI-Schutzschalter", "Strom"], ["Stromzähler", "Strom"],
+  ["Photovoltaik: Wechselrichter / Hauptschalter", "Strom"],
+  ["Hauptwasserabsperrung", "Wasser"], ["Wasserzähler", "Wasser"], ["Absperrhahn Außenwasser", "Wasser"],
+  ["Rückstauklappe", "Wasser"],
+  ["Gas-Hauptabsperrhahn", "Gas"], ["Gaszähler", "Gas"],
+  ["Heizungsanlage", "Heizung"], ["Heizkreisverteiler / Absperrungen", "Heizung"],
+  ["Router / Internet-Hausanschluss", "Internet"],
+  ["Rauchmelder (Standorte)", "Sicherheit"], ["Feuerlöscher", "Sicherheit"], ["Erste-Hilfe-Kasten", "Sicherheit"],
+  ["Ersatzschlüssel", "Sonstiges"],
+  ["Bauunterlagen & Bedienungsanleitungen", "Dokumente"],
+];
+
+// ---------- Hilfsfunktionen ----------
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const fmt = (n, d = 1) => n.toLocaleString("de-DE", { maximumFractionDigits: d });
+const pad = (n) => String(n).padStart(2, "0");
+const todayStr = () => { const d = new Date(); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
+const dayNum = (s) => { const [y, m, d] = s.split("-").map(Number); return Date.UTC(y, m - 1, d) / 86400000; };
+const fmtDate = (s) => s.split("-").reverse().join(".");
+const NOW = new Date();
+const THIS_YEAR = NOW.getFullYear();
+const THIS_MONTH = NOW.getMonth() + 1;
+
+// ---------- State ----------
+const KEY = "haus-manager";
+const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4);
+function seedState() {
+  return {
+    v: 1,
+    start: THIS_YEAR * 12 + THIS_MONTH, // Überfällig zählt erst ab dem Startmonat
+    tasks: TASK_SEED.map(([title, cat, months, note]) => ({ id: uid(), title, cat, months, year: null, note, done: {} })),
+    spots: [],
+    stock: [],
+    meters: [
+      { id: uid(), name: "Gas", unit: "m³", price: null },
+      { id: uid(), name: "Strom", unit: "kWh", price: null },
+      { id: uid(), name: "Wasser", unit: "m³", price: null },
+    ],
+    readings: [],
+  };
+}
+function load() {
+  try {
+    const p = JSON.parse(localStorage.getItem(KEY));
+    if (p && Array.isArray(p.tasks) && Array.isArray(p.spots) && Array.isArray(p.meters) && Array.isArray(p.readings)) {
+      if (!Array.isArray(p.stock)) p.stock = [];
+      if (!p.start) p.start = THIS_YEAR * 12 + THIS_MONTH;
+      return p;
+    }
+  } catch (e) {}
+  return seedState();
+}
+function save() {
+  try {
+    localStorage.setItem(KEY, JSON.stringify(state));
+  } catch (e) {
+    alert("Speichern fehlgeschlagen – der Browser-Speicher ist voll. Bitte ein Backup erstellen und große Fotos entfernen.");
+  }
+}
+let state = load();
+if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+
+const ui = { tab: "kalender", year: THIS_YEAR, month: THIS_MONTH, query: "", room: "", openSpot: null, stockQuery: "", stockFilter: "", openStock: null, meter: null };
+
+// ---------- Tabs ----------
+const ACTIONS = { kalender: "＋ Aufgabe hinzufügen", spots: "＋ Eintrag hinzufügen", lager: "＋ Lagerartikel hinzufügen", verbrauch: "＋ Zählerstand erfassen" };
+function showTab(tab) {
+  ui.tab = tab;
+  for (const t of Object.keys(ACTIONS)) $("view-" + t).hidden = t !== tab;
+  document.querySelectorAll(".tabs button").forEach((b) => b.classList.toggle("active", b.dataset.tab === tab));
+  $("actionBtn").textContent = ACTIONS[tab];
+  render();
+}
+document.querySelectorAll(".tabs button").forEach((b) => b.addEventListener("click", () => showTab(b.dataset.tab)));
+$("actionBtn").addEventListener("click", () => {
+  if (ui.tab === "kalender") openTask(null);
+  else if (ui.tab === "spots") openSpot(null);
+  else if (ui.tab === "lager") openStock(null);
+  else openReading(null);
+});
+function render() {
+  renderCalendar();
+  renderSpots();
+  renderStock();
+  renderUsage();
+}
+
+// ---------- Kalender ----------
+const dueIn = (year, month) => state.tasks.filter((t) => (t.year == null || t.year === year) && t.months.includes(month));
+const doneKey = (y, m) => `${y}-${m}`;
+const isDone = (t, y, m) => !!t.done[doneKey(y, m)];
+
+const beforeStart = (y, m) => y * 12 + m < state.start;
+
+function overdueList() {
+  const out = [];
+  for (let m = 1; m < THIS_MONTH; m++) if (!beforeStart(THIS_YEAR, m)) for (const t of dueIn(THIS_YEAR, m)) if (!isDone(t, THIS_YEAR, m)) out.push({ t, m });
+  return out;
+}
+
+function taskRow(t, y, m, showMonth) {
+  const c = TCATS[t.cat] || TCATS.haus;
+  const done = isDone(t, y, m);
+  const sub = [showMonth ? MONTHS[m - 1] : null, c.name, t.note].filter(Boolean).join(" · ");
+  return `<div class="row ${done ? "done" : ""}">
+    <input type="checkbox" data-act="toggle" data-id="${t.id}" data-y="${y}" data-m="${m}" ${done ? "checked" : ""} aria-label="Erledigt">
+    <div class="info" data-act="edit-task" data-id="${t.id}"><b>${c.ico} ${esc(t.title)}</b><span>${esc(sub)}</span></div>
+  </div>`;
+}
+
+function renderCalendar() {
+  const late = overdueList();
+  $("lateBadge").innerHTML = late.length ? `<span class="badge">${late.length}</span>` : "";
+  let cells = "";
+  for (let m = 1; m <= 12; m++) {
+    const occ = dueIn(ui.year, m);
+    const done = occ.filter((t) => isDone(t, ui.year, m)).length;
+    const past = (ui.year < THIS_YEAR || (ui.year === THIS_YEAR && m < THIS_MONTH)) && !beforeStart(ui.year, m);
+    const cls = [
+      m === ui.month ? "sel" : "",
+      ui.year === THIS_YEAR && m === THIS_MONTH ? "cur" : "",
+      occ.length && done === occ.length ? "alldone" : "",
+      past && done < occ.length ? "late" : "",
+    ].join(" ");
+    cells += `<button class="mcell ${cls}" data-act="month" data-m="${m}"><b>${MON_S[m - 1]}</b><small>${occ.length ? `${done}/${occ.length}` : "–"}</small></button>`;
+  }
+  const occ = dueIn(ui.year, ui.month).sort((a, b) => Object.keys(TCATS).indexOf(a.cat) - Object.keys(TCATS).indexOf(b.cat) || a.title.localeCompare(b.title, "de"));
+  let html = `<div class="year-bar"><button data-act="year" data-d="-1" aria-label="Vorjahr">‹</button><b>${ui.year}</b><button data-act="year" data-d="1" aria-label="Folgejahr">›</button></div>
+    <div class="month-grid">${cells}</div>`;
+  if (ui.year === THIS_YEAR && late.length) {
+    html += `<h2>⚠️ Überfällig (${late.length})</h2>` + late.map(({ t, m }) => taskRow(t, THIS_YEAR, m, true)).join("");
+  }
+  html += `<h2>${MONTHS[ui.month - 1]} ${ui.year}</h2>`;
+  html += occ.length ? occ.map((t) => taskRow(t, ui.year, ui.month, false)).join("") : `<div class="empty">Für diesen Monat ist nichts geplant.</div>`;
+  $("view-kalender").innerHTML = html;
+}
+
+let editTask = null;
+function openTask(id) {
+  editTask = id ? state.tasks.find((t) => t.id === id) : null;
+  $("taskDialogTitle").textContent = editTask ? "Aufgabe bearbeiten" : "Neue Aufgabe";
+  $("tTitle").value = editTask ? editTask.title : "";
+  $("tCat").innerHTML = Object.entries(TCATS).map(([k, c]) => `<option value="${k}">${c.ico} ${c.name}</option>`).join("");
+  $("tCat").value = editTask ? editTask.cat : "haus";
+  const months = editTask ? editTask.months : [ui.month];
+  $("tMonths").innerHTML = MON_S.map((n, i) => `<button type="button" data-m="${i + 1}" class="${months.includes(i + 1) ? "on" : ""}">${n}</button>`).join("");
+  $("tYear").value = editTask && editTask.year ? editTask.year : "";
+  $("tNote").value = editTask ? editTask.note : "";
+  $("taskDeleteBtn").hidden = !editTask;
+  $("taskDialog").showModal();
+}
+$("tMonths").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) b.classList.toggle("on"); });
+$("taskCancelBtn").addEventListener("click", () => $("taskDialog").close());
+$("taskSaveBtn").addEventListener("click", () => {
+  const title = $("tTitle").value.trim();
+  const months = [...$("tMonths").querySelectorAll("button.on")].map((b) => Number(b.dataset.m));
+  if (!title) return $("tTitle").focus();
+  if (!months.length) return alert("Bitte mindestens einen Monat wählen.");
+  const data = { title, cat: $("tCat").value, months, year: Number($("tYear").value) || null, note: $("tNote").value.trim() };
+  if (editTask) Object.assign(editTask, data);
+  else state.tasks.push({ id: uid(), done: {}, ...data });
+  save(); render(); $("taskDialog").close();
+});
+$("taskDeleteBtn").addEventListener("click", () => {
+  if (!confirm(`„${editTask.title}“ löschen?`)) return;
+  state.tasks = state.tasks.filter((t) => t !== editTask);
+  save(); render(); $("taskDialog").close();
+});
+
+// ---------- Wo ist was ----------
+const noPlace = (s) => !s.room && !s.place;
+
+function renderSpots() {
+  const rooms = [...new Set(state.spots.map((s) => s.room).filter(Boolean))].sort((a, b) => a.localeCompare(b, "de"));
+  const missing = state.spots.filter(noPlace).length;
+  $("roomList").innerHTML = [...new Set([...ROOMS, ...rooms])].map((r) => `<option value="${esc(r)}">`).join("");
+  const tokens = ui.query.toLowerCase().split(/\s+/).filter(Boolean);
+  const list = state.spots.filter((s) => {
+    if (ui.room === "__missing") { if (!noPlace(s)) return false; }
+    else if (ui.room && s.room !== ui.room) return false;
+    const hay = [s.name, s.room, s.place, s.cat, s.note].join(" ").toLowerCase();
+    return tokens.every((t) => hay.includes(t));
+  }).sort((a, b) => a.name.localeCompare(b.name, "de"));
+
+  const filterBtn = (val, label) => `<button data-act="room" data-room="${esc(val)}" class="${ui.room === val ? "on" : ""}">${esc(label)}</button>`;
+  let html = `<input class="search" id="searchInput" type="search" placeholder="Suchen: Sicherung, Wasser, Keller …" value="${esc(ui.query)}" autocomplete="off">
+    <div class="filters">${filterBtn("", "Alle")}${missing ? filterBtn("__missing", `❓ Standort fehlt (${missing})`) : ""}${rooms.map((r) => filterBtn(r, r)).join("")}</div>`;
+
+  if (!state.spots.length) {
+    html += `<div class="empty">Hier hältst du fest, wo Sicherungskasten, Absperrhähne, Zähler & Co. sitzen – mit Foto und Notiz.<br><br>
+      <button class="link-btn" data-act="seed-spots">Typische Einträge als Vorlage anlegen (${SPOT_SEED.length})</button></div>`;
+  } else if (!list.length) {
+    html += `<div class="empty">Nichts gefunden.</div>`;
+  } else {
+    html += list.map(spotCard).join("");
+  }
+  const keep = document.activeElement && document.activeElement.id === "searchInput";
+  $("view-spots").innerHTML = html;
+  if (keep) { const i = $("searchInput"); i.focus(); i.setSelectionRange(i.value.length, i.value.length); }
+}
+
+function spotCard(s) {
+  const open = ui.openSpot === s.id;
+  const where = [s.room, s.place].filter(Boolean).join(" · ");
+  return `<div class="spot" data-act="open-spot" data-id="${s.id}">
+    <div class="spot-head"><b>${esc(s.name)}</b>${noPlace(s) ? `<span class="chip warn">Standort fehlt</span>` : ""}<span class="chip soft">${esc(s.cat)}</span></div>
+    ${where ? `<div class="where">📍 ${esc(where)}</div>` : ""}
+    ${s.note ? `<div class="note ${open ? "" : "clamp"}">${esc(s.note)}</div>` : ""}
+    ${open && s.photo ? `<img src="${s.photo}" alt="Foto: ${esc(s.name)}" data-act="zoom">` : ""}
+    ${open ? `<div class="edit"><button class="link-btn" data-act="edit-spot" data-id="${s.id}">✏️ Bearbeiten</button></div>` : ""}
+    ${!open && s.photo ? `<div class="where">📷 Foto vorhanden</div>` : ""}
+  </div>`;
+}
+
+$("view-spots").addEventListener("input", (e) => {
+  if (e.target.id === "searchInput") { ui.query = e.target.value; renderSpots(); }
+});
+
+let editSpot = null;
+let draftPhoto = null;
+function showPhotoDraft() {
+  $("sPhotoPreview").hidden = !draftPhoto;
+  if (draftPhoto) $("sPhotoPreview").src = draftPhoto;
+  $("sPhotoRemove").hidden = !draftPhoto;
+}
+function openSpot(id) {
+  editSpot = id ? state.spots.find((s) => s.id === id) : null;
+  $("spotDialogTitle").textContent = editSpot ? "Eintrag bearbeiten" : "Neuer Eintrag";
+  $("sName").value = editSpot ? editSpot.name : "";
+  $("sRoom").value = editSpot ? editSpot.room : "";
+  $("sPlace").value = editSpot ? editSpot.place : "";
+  $("sCat").innerHTML = SPOT_CATS.map((c) => `<option>${c}</option>`).join("");
+  $("sCat").value = editSpot ? editSpot.cat : "Sonstiges";
+  $("sNote").value = editSpot ? editSpot.note : "";
+  $("sPhotoInput").value = "";
+  draftPhoto = editSpot ? editSpot.photo || null : null;
+  showPhotoDraft();
+  $("spotDeleteBtn").hidden = !editSpot;
+  $("spotDialog").showModal();
+}
+function resizeImage(file, max = 1000) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      const s = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement("canvas");
+      c.width = Math.round(img.width * s);
+      c.height = Math.round(img.height * s);
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      resolve(c.toDataURL("image/jpeg", 0.72));
+    };
+    img.onerror = reject;
+    img.src = url;
+  });
+}
+$("sPhotoInput").addEventListener("change", async (e) => {
+  const f = e.target.files[0];
+  if (!f) return;
+  try { draftPhoto = await resizeImage(f); showPhotoDraft(); } catch (err) { alert("Das Foto konnte nicht gelesen werden."); }
+});
+$("sPhotoRemove").addEventListener("click", () => { draftPhoto = null; $("sPhotoInput").value = ""; showPhotoDraft(); });
+$("spotCancelBtn").addEventListener("click", () => $("spotDialog").close());
+$("spotSaveBtn").addEventListener("click", () => {
+  const name = $("sName").value.trim();
+  if (!name) return $("sName").focus();
+  const data = { name, room: $("sRoom").value.trim(), place: $("sPlace").value.trim(), cat: $("sCat").value, note: $("sNote").value.trim(), photo: draftPhoto };
+  if (editSpot) Object.assign(editSpot, data);
+  else { const s = { id: uid(), ...data }; state.spots.push(s); ui.openSpot = s.id; }
+  save(); render(); $("spotDialog").close();
+});
+$("spotDeleteBtn").addEventListener("click", () => {
+  if (!confirm(`„${editSpot.name}“ löschen?`)) return;
+  state.spots = state.spots.filter((s) => s !== editSpot);
+  save(); render(); $("spotDialog").close();
+});
+
+// ---------- Lager (Werkzeug & Ersatzteile) ----------
+const isLow = (i) => i.min > 0 && i.qty <= i.min;
+
+function renderStock() {
+  const low = state.stock.filter(isLow).length;
+  const lent = state.stock.filter((i) => i.lent).length;
+  $("lowBadge").innerHTML = low ? `<span class="badge">${low}</span>` : "";
+  const places = [...new Set(state.stock.map((i) => i.place).filter(Boolean))].sort((a, b) => a.localeCompare(b, "de"));
+  $("stockPlaceList").innerHTML = [...new Set([...ROOMS, ...places])].map((r) => `<option value="${esc(r)}">`).join("");
+
+  const f = ui.stockFilter;
+  const tokens = ui.stockQuery.toLowerCase().split(/\s+/).filter(Boolean);
+  const list = state.stock.filter((i) => {
+    if (f === "__low") { if (!isLow(i)) return false; }
+    else if (f === "__lent") { if (!i.lent) return false; }
+    else if (f.startsWith("type:")) { if (i.type !== f.slice(5)) return false; }
+    else if (f.startsWith("place:")) { if (i.place !== f.slice(6)) return false; }
+    const hay = [i.name, STOCK_TYPES[i.type]?.name, i.place, i.note, i.lent].join(" ").toLowerCase();
+    return tokens.every((t) => hay.includes(t));
+  }).sort((a, b) => a.name.localeCompare(b.name, "de"));
+
+  const btn = (val, label) => `<button data-act="stock-filter" data-f="${esc(val)}" class="${f === val ? "on" : ""}">${esc(label)}</button>`;
+  let html = `<input class="search" id="stockSearch" type="search" placeholder="Suchen: Akkuschrauber, Dichtung, Gerätehütte …" value="${esc(ui.stockQuery)}" autocomplete="off">
+    <div class="filters">${btn("", "Alle")}${low ? btn("__low", `⚠️ Nachkaufen (${low})`) : ""}${lent ? btn("__lent", `🤝 Verliehen (${lent})`) : ""}${Object.entries(STOCK_TYPES).map(([k, t]) => btn("type:" + k, `${t.ico} ${t.name}`)).join("")}</div>
+    ${places.length ? `<div class="filters">${places.map((p) => btn("place:" + p, "📦 " + p)).join("")}</div>` : ""}`;
+
+  if (!state.stock.length) html += `<div class="empty">Hier erfasst du Werkzeug, Ersatzteile und Verbrauchsmaterial – mit Lagerort, Menge und Mindestbestand.<br>Tippe unten auf „Lagerartikel hinzufügen“.</div>`;
+  else if (!list.length) html += `<div class="empty">Nichts gefunden.</div>`;
+  else html += list.map(stockCard).join("");
+
+  const keep = document.activeElement && document.activeElement.id === "stockSearch";
+  $("view-lager").innerHTML = html;
+  if (keep) { const i = $("stockSearch"); i.focus(); i.setSelectionRange(i.value.length, i.value.length); }
+}
+
+function stockCard(i) {
+  const open = ui.openStock === i.id;
+  const t = STOCK_TYPES[i.type] || STOCK_TYPES.werkzeug;
+  return `<div class="spot" data-act="open-stock" data-id="${i.id}">
+    <div class="spot-head">
+      <b>${t.ico} ${esc(i.name)}</b>
+      <div class="qty"><button data-act="qty" data-id="${i.id}" data-d="-1" aria-label="Eine Einheit weniger">−</button><b class="${isLow(i) ? "low" : ""}">${i.qty}</b><button data-act="qty" data-id="${i.id}" data-d="1" aria-label="Eine Einheit mehr">＋</button></div>
+    </div>
+    <div class="where">${i.place ? `📦 ${esc(i.place)}` : `<span class="chip warn">Lagerort fehlt</span>`}
+      ${isLow(i) ? ` <span class="chip danger">Nachkaufen (Min. ${i.min})</span>` : ""}${i.lent ? ` <span class="chip soft">🤝 ${esc(i.lent)}</span>` : ""}</div>
+    ${i.note ? `<div class="note ${open ? "" : "clamp"}">${esc(i.note)}</div>` : ""}
+    ${open && i.photo ? `<img src="${i.photo}" alt="Foto: ${esc(i.name)}" data-act="zoom">` : ""}
+    ${open ? `<div class="edit"><button class="link-btn" data-act="edit-stock" data-id="${i.id}">✏️ Bearbeiten</button></div>` : ""}
+    ${!open && i.photo ? `<div class="where">📷 Foto vorhanden</div>` : ""}
+  </div>`;
+}
+
+$("view-lager").addEventListener("input", (e) => {
+  if (e.target.id === "stockSearch") { ui.stockQuery = e.target.value; renderStock(); }
+});
+
+let editStock = null;
+let draftStockPhoto = null;
+function showStockPhoto() {
+  $("lPhotoPreview").hidden = !draftStockPhoto;
+  if (draftStockPhoto) $("lPhotoPreview").src = draftStockPhoto;
+  $("lPhotoRemove").hidden = !draftStockPhoto;
+}
+function openStock(id) {
+  editStock = id ? state.stock.find((i) => i.id === id) : null;
+  $("stockDialogTitle").textContent = editStock ? "Lagerartikel bearbeiten" : "Neuer Lagerartikel";
+  $("lName").value = editStock ? editStock.name : "";
+  $("lType").innerHTML = Object.entries(STOCK_TYPES).map(([k, t]) => `<option value="${k}">${t.ico} ${t.name}</option>`).join("");
+  $("lType").value = editStock ? editStock.type : "werkzeug";
+  $("lPlace").value = editStock ? editStock.place : "";
+  $("lQty").value = editStock ? editStock.qty : 1;
+  $("lMin").value = editStock && editStock.min ? editStock.min : "";
+  $("lNote").value = editStock ? editStock.note : "";
+  $("lLent").value = editStock ? editStock.lent : "";
+  $("lPhotoInput").value = "";
+  draftStockPhoto = editStock ? editStock.photo || null : null;
+  showStockPhoto();
+  $("stockDeleteBtn").hidden = !editStock;
+  $("stockDialog").showModal();
+}
+$("lPhotoInput").addEventListener("change", async (e) => {
+  const f = e.target.files[0];
+  if (!f) return;
+  try { draftStockPhoto = await resizeImage(f); showStockPhoto(); } catch (err) { alert("Das Foto konnte nicht gelesen werden."); }
+});
+$("lPhotoRemove").addEventListener("click", () => { draftStockPhoto = null; $("lPhotoInput").value = ""; showStockPhoto(); });
+$("stockCancelBtn").addEventListener("click", () => $("stockDialog").close());
+$("stockSaveBtn").addEventListener("click", () => {
+  const name = $("lName").value.trim();
+  if (!name) return $("lName").focus();
+  const data = {
+    name, type: $("lType").value, place: $("lPlace").value.trim(),
+    qty: Math.max(0, Math.round(Number($("lQty").value) || 0)), min: Math.max(0, Math.round(Number($("lMin").value) || 0)),
+    note: $("lNote").value.trim(), lent: $("lLent").value.trim(), photo: draftStockPhoto,
+  };
+  if (editStock) Object.assign(editStock, data);
+  else { const i = { id: uid(), ...data }; state.stock.push(i); ui.openStock = i.id; }
+  save(); render(); $("stockDialog").close();
+});
+$("stockDeleteBtn").addEventListener("click", () => {
+  if (!confirm(`„${editStock.name}“ löschen?`)) return;
+  state.stock = state.stock.filter((i) => i !== editStock);
+  save(); render(); $("stockDialog").close();
+});
+
+// ---------- Verbrauch ----------
+function meterData(m) {
+  const rs = state.readings.filter((r) => r.meter === m.id).sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  const iv = [];
+  for (let i = 1; i < rs.length; i++) {
+    const days = dayNum(rs[i].date) - dayNum(rs[i - 1].date);
+    const delta = rs[i].value - rs[i - 1].value;
+    iv.push({ from: rs[i - 1], to: rs[i], days, delta, perDay: days > 0 ? delta / days : null, bad: delta < 0 || days <= 0 });
+  }
+  return { rs, iv };
+}
+// Verbrauch im Zeitfenster [s, e) (Tagesnummern), anteilig aus den Ablese-Intervallen
+function usageBetween(iv, s, e) {
+  let sum = 0, cov = 0;
+  for (const i of iv) {
+    if (i.bad) continue;
+    const ov = Math.min(dayNum(i.to.date), e) - Math.max(dayNum(i.from.date), s);
+    if (ov > 0) { sum += (i.delta * ov) / i.days; cov += ov; }
+  }
+  return { sum, cov };
+}
+
+function renderUsage() {
+  if (!state.meters.some((m) => m.id === ui.meter)) ui.meter = state.meters[0] ? state.meters[0].id : null;
+  const bar = state.meters.map((m) => `<button data-act="meter" data-id="${m.id}" class="${m.id === ui.meter ? "on" : ""}">${esc(m.name)}</button>`).join("")
+    + `<button data-act="add-meter">＋ Zähler</button>`;
+  let html = `<div class="meter-bar">${bar}</div>`;
+  const m = state.meters.find((x) => x.id === ui.meter);
+  if (!m) { $("view-verbrauch").innerHTML = html + `<div class="empty">Lege einen Zähler an, um Stände zu erfassen.</div>`; return; }
+
+  const { rs, iv } = meterData(m);
+  const good = iv.filter((i) => !i.bad && i.perDay != null);
+  const last = rs[rs.length - 1];
+  const sinceDays = last ? Math.round(dayNum(todayStr()) - dayNum(last.date)) : null;
+  const price = m.price > 0 ? m.price : null;
+
+  if (!rs.length) {
+    html += `<div class="empty">Noch kein Zählerstand für <b>${esc(m.name)}</b>.<br>Tippe unten auf „Zählerstand erfassen“.</div>`;
+  } else {
+    // Kennzahlen
+    const lastIv = good[good.length - 1];
+    const end = dayNum(last.date);
+    const win = usageBetween(iv, end - 365, end);
+    const est = win.cov >= 60 ? (win.sum / win.cov) * 365 : null;
+    const stat = (label, val) => `<div class="stat"><small>${label}</small><b>${val}</b></div>`;
+    html += `<div class="card"><div class="stats">
+      ${stat("Letzter Stand", `${fmt(last.value, 2)} <em>${esc(m.unit)}</em>`)}
+      ${stat("Abgelesen", `${fmtDate(last.date)} ${sinceDays > 35 ? `<span class="chip warn">vor ${sinceDays} Tagen</span>` : ""}`)}
+      ${stat("Letzte Periode", lastIv ? `${fmt(lastIv.delta, 1)} <em>${esc(m.unit)} · ${fmt(lastIv.perDay, 2)}/Tag</em>` : "–")}
+      ${stat("Hochrechnung 12 Monate", est != null ? `${fmt(est, 0)} <em>${esc(m.unit)}</em>${price ? ` <em>· ≈ ${fmt(est * price, 0)} €</em>` : ""}` : `<em>noch zu wenig Daten</em>`)}
+    </div></div>`;
+
+    // Diagramm: Verbrauch pro Tag je Ablese-Periode
+    const bars = good.slice(-12);
+    if (bars.length) {
+      const W = 320, H = 130, top = 16, bottom = 22, gap = 6;
+      const bw = (W - gap * (bars.length + 1)) / bars.length;
+      const max = Math.max(...bars.map((b) => b.perDay), 0.0001);
+      const showVal = bars.length <= 8;
+      const svg = bars.map((b, i) => {
+        const h = Math.max(1, ((H - top - bottom) * b.perDay) / max);
+        const x = gap + i * (bw + gap);
+        const [, mm] = b.to.date.split("-");
+        return `<rect x="${x.toFixed(1)}" y="${(H - bottom - h).toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="3"/>
+          <text x="${(x + bw / 2).toFixed(1)}" y="${H - 8}" text-anchor="middle">${MON_S[Number(mm) - 1]}</text>
+          ${showVal ? `<text class="val" x="${(x + bw / 2).toFixed(1)}" y="${(H - bottom - h - 4).toFixed(1)}" text-anchor="middle">${fmt(b.perDay, 1)}</text>` : ""}`;
+      }).join("");
+      html += `<div class="card"><h2 style="margin-top:0">${esc(m.unit)} pro Tag je Ablese-Periode</h2>
+        <svg class="chart" viewBox="0 0 ${W} ${H}" role="img" aria-label="Verbrauch pro Tag in ${esc(m.unit)}">${svg}</svg></div>`;
+    }
+
+    // Jahresverbrauch
+    const y0 = Number(rs[0].date.slice(0, 4)), y1 = Number(last.date.slice(0, 4));
+    const years = [];
+    for (let y = y1; y >= y0; y--) {
+      const len = dayNum(`${y + 1}-01-01`) - dayNum(`${y}-01-01`);
+      const u = usageBetween(iv, dayNum(`${y}-01-01`), dayNum(`${y + 1}-01-01`));
+      if (u.cov > 0) years.push({ y, len, ...u });
+    }
+    if (years.length) {
+      html += `<div class="card"><h2 style="margin-top:0">Jahresverbrauch</h2><table class="plain"><tr><th>Jahr</th><th class="num">Verbrauch</th>${price ? `<th class="num">Kosten</th>` : ""}</tr>
+        ${years.map((r) => {
+          const part = r.cov < r.len * 0.97;
+          return `<tr><td>${r.y}${part ? ` <span class="chip none">${Math.round(r.cov)} Tage erfasst</span>` : ""}</td><td class="num">${fmt(r.sum, 0)} ${esc(m.unit)}</td>${price ? `<td class="num">${fmt(r.sum * price, 0)} €</td>` : ""}</tr>`;
+        }).join("")}</table></div>`;
+    }
+
+    // Ablesungen
+    const rows = rs.map((r, i) => {
+      const it = i > 0 ? iv[i - 1] : null;
+      const diff = it ? (it.bad ? `<span class="chip warn">Zählerwechsel?</span>` : `+${fmt(it.delta, 1)}`) : "";
+      return `<tr class="clickable" data-act="edit-reading" data-id="${r.id}"><td>${fmtDate(r.date)}${r.note ? `<br><small style="color:var(--muted)">${esc(r.note)}</small>` : ""}</td><td class="num">${fmt(r.value, 2)}</td><td class="num">${diff}</td></tr>`;
+    }).reverse().join("");
+    html += `<div class="card"><h2 style="margin-top:0">Ablesungen</h2><table class="plain"><tr><th>Datum</th><th class="num">Stand (${esc(m.unit)})</th><th class="num">Differenz</th></tr>${rows}</table></div>`;
+  }
+  html += `<button class="link-btn" data-act="edit-meter" data-id="${m.id}">⚙️ Zähler „${esc(m.name)}“ bearbeiten</button>`;
+  $("view-verbrauch").innerHTML = html;
+}
+
+let editMeter = null;
+function openMeter(id) {
+  editMeter = id ? state.meters.find((m) => m.id === id) : null;
+  $("meterDialogTitle").textContent = editMeter ? "Zähler bearbeiten" : "Neuer Zähler";
+  $("mName").value = editMeter ? editMeter.name : "";
+  $("mUnit").value = editMeter ? editMeter.unit : "";
+  $("mPrice").value = editMeter && editMeter.price ? editMeter.price : "";
+  $("meterDeleteBtn").hidden = !editMeter;
+  $("meterDialog").showModal();
+}
+$("meterCancelBtn").addEventListener("click", () => $("meterDialog").close());
+$("meterSaveBtn").addEventListener("click", () => {
+  const name = $("mName").value.trim(), unit = $("mUnit").value.trim();
+  if (!name) return $("mName").focus();
+  if (!unit) return $("mUnit").focus();
+  const data = { name, unit, price: Number($("mPrice").value) || null };
+  if (editMeter) Object.assign(editMeter, data);
+  else { const m = { id: uid(), ...data }; state.meters.push(m); ui.meter = m.id; }
+  save(); render(); $("meterDialog").close();
+});
+$("meterDeleteBtn").addEventListener("click", () => {
+  const n = state.readings.filter((r) => r.meter === editMeter.id).length;
+  if (!confirm(`Zähler „${editMeter.name}“ mit ${n} Ablesung(en) löschen?`)) return;
+  state.meters = state.meters.filter((m) => m !== editMeter);
+  state.readings = state.readings.filter((r) => r.meter !== editMeter.id);
+  save(); render(); $("meterDialog").close();
+});
+
+let editReading = null;
+function updateReadingUnit() {
+  const m = state.meters.find((x) => x.id === $("rMeter").value);
+  $("rValueLabel").textContent = `Zählerstand${m ? ` (${m.unit})` : ""}`;
+}
+function openReading(id) {
+  if (!state.meters.length) return openMeter(null);
+  editReading = id ? state.readings.find((r) => r.id === id) : null;
+  $("readingDialogTitle").textContent = editReading ? "Zählerstand bearbeiten" : "Zählerstand erfassen";
+  $("rMeter").innerHTML = state.meters.map((m) => `<option value="${m.id}">${esc(m.name)}</option>`).join("");
+  $("rMeter").value = editReading ? editReading.meter : ui.meter;
+  $("rDate").value = editReading ? editReading.date : todayStr();
+  $("rValue").value = editReading ? editReading.value : "";
+  $("rNote").value = editReading ? editReading.note || "" : "";
+  updateReadingUnit();
+  $("readingDeleteBtn").hidden = !editReading;
+  $("readingDialog").showModal();
+}
+$("rMeter").addEventListener("change", updateReadingUnit);
+$("readingCancelBtn").addEventListener("click", () => $("readingDialog").close());
+$("readingSaveBtn").addEventListener("click", () => {
+  const date = $("rDate").value, raw = $("rValue").value;
+  if (!date) return $("rDate").focus();
+  if (raw === "") return $("rValue").focus();
+  const meter = $("rMeter").value, value = Number(raw);
+  const prev = state.readings.filter((r) => r.meter === meter && r !== editReading && r.date <= date).sort((a, b) => (a.date < b.date ? 1 : -1))[0];
+  if (prev && value < prev.value && !confirm(`Der Stand ist niedriger als am ${fmtDate(prev.date)} (${fmt(prev.value, 2)}). Zählerwechsel oder Tippfehler? Trotzdem speichern?`)) return;
+  const data = { meter, date, value, note: $("rNote").value.trim() };
+  if (editReading) Object.assign(editReading, data);
+  else state.readings.push({ id: uid(), ...data });
+  ui.meter = meter;
+  save(); render(); $("readingDialog").close();
+});
+$("readingDeleteBtn").addEventListener("click", () => {
+  if (!confirm("Diese Ablesung löschen?")) return;
+  state.readings = state.readings.filter((r) => r !== editReading);
+  save(); render(); $("readingDialog").close();
+});
+
+// ---------- Klicks (delegiert) ----------
+document.addEventListener("click", (e) => {
+  const el = e.target.closest("[data-act]");
+  if (!el) return;
+  const { act, id } = el.dataset;
+  if (act === "toggle") return; // wird über change behandelt
+  if (act === "month") { ui.month = Number(el.dataset.m); renderCalendar(); }
+  else if (act === "year") { ui.year += Number(el.dataset.d); renderCalendar(); }
+  else if (act === "edit-task") openTask(id);
+  else if (act === "room") { ui.room = el.dataset.room; renderSpots(); }
+  else if (act === "open-spot") { ui.openSpot = ui.openSpot === id ? null : id; renderSpots(); }
+  else if (act === "edit-spot") { e.stopPropagation(); openSpot(id); }
+  else if (act === "zoom") { e.stopPropagation(); $("lightboxImg").src = el.src; $("lightboxDialog").showModal(); }
+  else if (act === "seed-spots") {
+    SPOT_SEED.forEach(([name, cat]) => state.spots.push({ id: uid(), name, room: "", place: "", cat, note: "", photo: null }));
+    ui.room = "__missing"; save(); renderSpots();
+  }
+  else if (act === "open-stock") { ui.openStock = ui.openStock === id ? null : id; renderStock(); }
+  else if (act === "edit-stock") { e.stopPropagation(); openStock(id); }
+  else if (act === "qty") {
+    e.stopPropagation();
+    const i = state.stock.find((x) => x.id === id);
+    i.qty = Math.max(0, i.qty + Number(el.dataset.d));
+    save(); renderStock();
+  }
+  else if (act === "stock-filter") { ui.stockFilter = el.dataset.f; renderStock(); }
+  else if (act === "meter") { ui.meter = id; renderUsage(); }
+  else if (act === "add-meter") openMeter(null);
+  else if (act === "edit-meter") openMeter(id);
+  else if (act === "edit-reading") openReading(id);
+});
+document.addEventListener("change", (e) => {
+  const el = e.target;
+  if (el.dataset.act !== "toggle") return;
+  const t = state.tasks.find((x) => x.id === el.dataset.id);
+  const key = doneKey(el.dataset.y, el.dataset.m);
+  if (el.checked) t.done[key] = todayStr(); else delete t.done[key];
+  save(); renderCalendar();
+});
+$("lightboxDialog").addEventListener("click", () => $("lightboxDialog").close());
+
+// ---------- Backup & Export ----------
+function download(name, text, type) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([text], { type }));
+  a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+$("settingsBtn").addEventListener("click", () => $("settingsDialog").showModal());
+$("closeSettingsBtn").addEventListener("click", () => $("settingsDialog").close());
+$("exportJsonBtn").addEventListener("click", () => download(`haus-manager-backup-${todayStr()}.json`, JSON.stringify(state), "application/json"));
+$("importJsonBtn").addEventListener("click", () => $("importInput").click());
+$("importInput").addEventListener("change", async (e) => {
+  const f = e.target.files[0];
+  e.target.value = "";
+  if (!f) return;
+  try {
+    const p = JSON.parse(await f.text());
+    if (!["tasks", "spots", "meters", "readings"].every((k) => Array.isArray(p[k]))) throw new Error("format");
+    if (!Array.isArray(p.stock)) p.stock = [];
+    if (!p.start) p.start = THIS_YEAR * 12 + THIS_MONTH;
+    if (!confirm(`Backup einspielen? Das ersetzt alle aktuellen Daten (${p.tasks.length} Aufgaben, ${p.spots.length} Einträge, ${p.stock.length} Lagerartikel, ${p.readings.length} Ablesungen).`)) return;
+    state = p; save(); render(); $("settingsDialog").close();
+  } catch (err) {
+    alert("Diese Datei ist kein gültiges Haus-Manager-Backup.");
+  }
+});
+$("exportMdBtn").addEventListener("click", () => {
+  const L = [`# Haus-Manager – Export ${fmtDate(todayStr())}`, "", "## Wo ist was", ""];
+  const cell = (s) => String(s || "").replace(/\|/g, "/").replace(/\n/g, " ");
+  if (state.spots.length) {
+    L.push("| Was | Ort | Kategorie | Details |", "| --- | --- | --- | --- |");
+    [...state.spots].sort((a, b) => a.name.localeCompare(b.name, "de")).forEach((s) =>
+      L.push(`| ${cell(s.name)} | ${cell([s.room, s.place].filter(Boolean).join(", ")) || "?"} | ${cell(s.cat)} | ${cell(s.note)} |`));
+  } else L.push("_Noch keine Einträge._");
+  L.push("", "## Lager (Werkzeug & Ersatzteile)", "");
+  if (state.stock.length) {
+    L.push("| Was | Art | Lagerort | Menge | Details |", "| --- | --- | --- | --- | --- |");
+    [...state.stock].sort((a, b) => a.name.localeCompare(b.name, "de")).forEach((i) =>
+      L.push(`| ${cell(i.name)} | ${STOCK_TYPES[i.type]?.name || ""} | ${cell(i.place) || "?"} | ${i.qty}${isLow(i) ? " (nachkaufen)" : ""} | ${cell([i.note, i.lent && "verliehen: " + i.lent].filter(Boolean).join("; "))} |`));
+  } else L.push("_Noch keine Einträge._");
+  L.push("", "## Zählerstände", "");
+  state.meters.forEach((m) => {
+    const { rs, iv } = meterData(m);
+    L.push(`### ${m.name} (${m.unit})`, "");
+    if (!rs.length) { L.push("_Keine Ablesungen._", ""); return; }
+    L.push("| Datum | Stand | Differenz | Ø pro Tag |", "| --- | --- | --- | --- |");
+    rs.forEach((r, i) => {
+      const it = i > 0 ? iv[i - 1] : null;
+      L.push(`| ${fmtDate(r.date)} | ${fmt(r.value, 2)} | ${it && !it.bad ? "+" + fmt(it.delta, 1) : ""} | ${it && !it.bad ? fmt(it.perDay, 2) : ""} |`);
+    });
+    L.push("");
+  });
+  L.push("## Jahreskalender", "", "| Monat | Aufgabe | Bereich |", "| --- | --- | --- |");
+  for (let m = 1; m <= 12; m++) dueIn(THIS_YEAR, m).forEach((t) => L.push(`| ${MONTHS[m - 1]} | ${cell(t.title)} | ${TCATS[t.cat]?.name || ""} |`));
+  download(`Haus-Manager-Export-${todayStr()}.md`, L.join("\n") + "\n", "text/markdown");
+});
+
+// ---------- Start ----------
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+showTab("kalender");
+</script>
+</body>
+</html>

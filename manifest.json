@@ -1,0 +1,19 @@
+{
+  "name": "Haus-Manager",
+  "short_name": "Haus",
+  "description": "Haus verwalten: Jahreskalender für Aufgaben, Wo ist was? und Verbrauchserfassung",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4f6f6",
+  "theme_color": "#1f6f78",
+  "lang": "de",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
